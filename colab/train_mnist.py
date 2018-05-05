@@ -8,19 +8,41 @@ from chainer import datasets, iterators, optimizers, serializers
 
 import argparse
 
+from enum import IntEnum
+
+
+class OptimizerType(IntEnum):
+    AdaDelta = 1,
+    AdaGrad = 2,
+    Adam = 3,
+    MomentumSGD = 4,
+    NesterovAG = 5,
+    RMSprop = 6,
+    RMSpropGraves = 7,
+    SGD = 8,
+    SMORMS3 = 9
+
+
+def get_optimizer(type: OptimizerType):
+    mod = __import__("chainer.optimizers", fromlist=[type.name])
+    class_def = getattr(mod, type.name)
+    return class_def()
+
+
 # ネットワーク定義
 class MLP(Chain):
     def __init__(self, n_units):
         super(MLP, self).__init__()
         with self.init_scope():
-            self.l1 = L.Linear(None, n_units) # 入力層
-            self.l2 = L.Linear(None, n_units) # 中間層
-            self.l3 = L.Linear(None, 10)      # 出力層
+            self.l1 = L.Linear(None, n_units)  # 入力層
+            self.l2 = L.Linear(None, n_units)  # 中間層
+            self.l3 = L.Linear(None, 10)  # 出力層
 
     def __call__(self, x):
         h1 = F.relu(self.l1(x))
         h2 = F.relu(self.l2(h1))
         return self.l3(h2)
+
 
 # 引数の定義
 parser = argparse.ArgumentParser(description='example: MNIST')
@@ -36,12 +58,16 @@ parser.add_argument('--initmodel', '-m', default='',
                     help='Initialize the model from given file')
 parser.add_argument('--resume', '-r', default='',
                     help='Resume the optimization from snapshot')
+parser.add_argument('--optimizer', '-o', type=int, default=OptimizerType.SGD,
+                    help='AdaDelta = 1, AdaGrad = 2, Adam = 3, MomentumSGD = 4, '
+                         'NesterovAG = 5, RMSprop = 6, RMSpropGraves = 7, SGD = 8, SMORMS3 = 9')
 args = parser.parse_args()
 
 print('GPU: {}'.format(args.gpu))
 print('# unit: {}'.format(args.unit))
 print('# Minibatch-size: {}'.format(args.batchsize))
 print('# epoch: {}'.format(args.epoch))
+print('# optimizer: {}'.format(args.optimizer))
 
 # モデルの作成
 model = MLP(args.unit)
@@ -51,7 +77,7 @@ if args.gpu >= 0:
     model.to_gpu()
 
 # 最適化手法の設定
-optimizer = optimizers.SGD()
+optimizer = get_optimizer(OptimizerType(args.optimizer))
 optimizer.setup(model)
 
 # 保存したモデルを読み込み
