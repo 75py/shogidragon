@@ -107,3 +107,5 @@ venv.bak/
 
 *.iml
 *.csa
+kifulist_test.txt
+kifulist_train.txt
